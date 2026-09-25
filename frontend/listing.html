@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listing — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .gallery-tabs{display:flex; gap:8px; margin-bottom:12px;}
+  .gallery-tabs button{font-size:0.78rem; font-weight:700; padding:8px 16px; border-radius:100px; background:var(--cream); color:var(--grey);}
+  .gallery-tabs button.active{background:var(--ink); color:var(--white);}
+  .gallery-main{aspect-ratio:16/10; border-radius:var(--radius-md); overflow:hidden; background:var(--cream); margin-bottom:10px;}
+  .gallery-main img{width:100%; height:100%; object-fit:cover;}
+  .price-breakdown{background:var(--cream); border-radius:var(--radius-md); padding:18px 20px; margin:18px 0;}
+  .price-breakdown .row{display:flex; justify-content:space-between; font-size:0.88rem; padding:6px 0;}
+  .price-breakdown .row.total{border-top:2px dashed var(--line); margin-top:8px; padding-top:12px; font-weight:800; font-family:'Sora';}
+  .agent-card{display:flex; align-items:center; gap:14px; border:2px solid var(--line); border-radius:var(--radius-md); padding:16px; margin:18px 0;}
+  .agent-avatar{width:48px; height:48px; border-radius:50%; background:var(--orange-soft); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--orange-dark); font-family:'Sora';}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div class="page-header">
+    <a class="back-btn" href="browse.html">←</a>
+    <strong style="font-family:'Sora'; font-size:1rem;">Listing details</strong>
+    <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="openModal('reportModal')">🚩 Report</button>
+  </div>
+
+  <div class="gallery-tabs">
+    <button class="active" onclick="setGallery('exterior', this)">Exterior</button>
+    <button onclick="setGallery('interior', this)">Interior</button>
+  </div>
+  <div class="gallery-main"><img id="galleryMainImg" src=""></div>
+
+  <div id="detailBody" style="padding-bottom:40px;"></div>
+</div>
+
+<div class="sticky-cta">
+  <button class="btn-ghost" onclick="openChatFromListing()">Message Agent</button>
+  <button class="btn btn-dark" onclick="openRentModal()">Rent This Apartment</button>
+</div>
+
+<!-- RENT MODAL -->
+<div class="modal-overlay" id="rentModal">
+  <div class="modal-sheet">
+    <button class="close-modal" onclick="closeModal('rentModal')">✕</button>
+    <h3>Confirm & Pay</h3>
+    <p class="sub" id="rentModalSub"></p>
+    <div id="rentModalError"></div>
+    <div class="pay-option selected" onclick="selectPayOption(this,true)">
+      <div class="radio"></div>
+      <div><strong style="font-size:0.88rem;" id="payFullLabel"></strong><br><span style="font-size:0.76rem; color:var(--grey);">Card, transfer or USSD via Paystack</span></div>
+    </div>
+    <div class="pay-option" onclick="selectPayOption(this,false)">
+      <div class="radio"></div>
+      <div><strong style="font-size:0.88rem;" id="payFeeLabel"></strong><br><span style="font-size:0.76rem; color:var(--grey);">Secure the apartment, pay rent on move-in</span></div>
+    </div>
+    <div class="escrow-note">🛡️ <span>Your payment is held securely and only released to the agent once you confirm the apartment matches the listing.</span></div>
+    <button class="btn btn-dark btn-block" id="rentConfirmBtn" onclick="initiatePayment()">Proceed to Paystack →</button>
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-sheet">
+    <button class="close-modal" onclick="closeModal('reportModal')">✕</button>
+    <h3>Report this listing</h3>
+    <div id="reportError"></div>
+    <div class="form-field"><label>Reason</label>
+      <select id="reportReason">
+        <option>Fake listing</option>
+        <option>Misleading photos</option>
+        <option>Agent unresponsive</option>
+        <option>Price doesn't match what agent quoted</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <button class="btn btn-dark btn-block" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal-sheet">
+    <button class="close-modal" onclick="closeModal('reviewModal')">✕</button>
+    <h3>Rate this agent</h3>
+    <p class="sub">How was your experience?</p>
+    <div id="reviewError"></div>
+    <div class="star-row" id="starRow">
+      <button data-v="1">★</button><button data-v="2">★</button><button data-v="3">★</button><button data-v="4">★</button><button data-v="5">★</button>
+    </div>
+    <div class="form-field"><label>Comment (optional)</label><textarea id="reviewComment" rows="3"></textarea></div>
+    <button class="btn btn-dark btn-block" onclick="submitReview()">Submit Review</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('browse');
+const urlParams = new URLSearchParams(window.location.search);
+const listingId = urlParams.get('id');
+const returnedTransactionId = urlParams.get('transactionId');
+let currentListing = null;
+let payFull = true;
+let selectedStars = 0;
+
+async function loadDetail(){
+  if (!listingId){ document.getElementById('detailBody').innerHTML = '<div class="empty-state">No listing selected.</div>'; return; }
+  const res = await fetch(`${API}/listings/${listingId}`);
+  currentListing = await res.json();
+  document.getElementById('galleryMainImg').src = currentListing.photos?.exterior?.[0] || '';
+  const ratingText = currentListing.agentRating ? `${currentListing.agentRating.toFixed(1)} ★ (${currentListing.agentReviewCount} reviews)` : 'No reviews yet';
+  document.getElementById('detailBody').innerHTML = `
+    <h2 style="font-size:1.4rem; margin-top:10px;">${currentListing.title}</h2>
+    <div style="color:var(--grey); font-size:0.85rem; margin:6px 0 14px;">📍 ${currentListing.location}</div>
+    <div>
+      <span class="tag">${currentListing.agentVerified ? '✅ Agent Verified' : '⏳ Verification Pending'} ${currentListing.topAgent ? '<span class="tag">🏆 Top Agent</span>' : ''} ${currentListing.topAgent ? '<span class="tag">🏆 Top Agent</span>' : ''}</span>
+      <span class="tag">${currentListing.rooms}</span>
+      <span class="tag">${currentListing.status === 'available' ? 'Available now' : 'Rented'}</span>
+      ${currentListing.agentLowRated ? '<span class="tag tag-warn">⚠ Low agent rating</span>' : ''}
+    </div>
+    <div class="price-breakdown">
+      <div class="row"><span>Annual rent</span><span>${money(currentListing.rentPrice)}</span></div>
+      <div class="row"><span>Agent fee</span><span>${money(currentListing.agentFee)}</span></div>
+      <div class="row total"><span>Total to pay</span><span>${money(currentListing.rentPrice + currentListing.agentFee)}</span></div>
+    </div>
+    <p style="font-size:0.92rem; line-height:1.7; margin-bottom:16px;">${currentListing.description}</p>
+    <div class="agent-card">
+      <div class="agent-avatar">${(currentListing.agentName||'A').split(' ').map(w=>w[0]).join('').slice(0,2)}</div>
+      <div><strong style="font-size:0.92rem;">${currentListing.agentName}</strong><br><span style="font-size:0.76rem; color:var(--grey);">${ratingText}</span></div>
+    </div>
+  `;
+  if (returnedTransactionId && state.user?.role === 'renter') {
+    showConfirmStep({ id: returnedTransactionId, paymentRef: 'Paystack payment' });
+  }
+}
+function setGallery(tab, btn){
+  document.querySelectorAll('.gallery-tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('galleryMainImg').src = currentListing.photos?.[tab]?.[0] || '';
+}
+
+// Report
+async function submitReport(){
+  if (!requireLogin()) return;
+  const reason = document.getElementById('reportReason').value;
+  const res = await fetch(`${API}/trust/reports`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify({ listingId: currentListing.id, reason }) });
+  const data = await res.json();
+  if (!res.ok){ document.getElementById('reportError').innerHTML = `<div class="error-msg">${data.message}</div>`; return; }
+  closeModal('reportModal');
+  alert('Report submitted. Thank you for helping keep Foltrest safe.');
+}
+
+// Review
+document.getElementById('starRow').addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  selectedStars = Number(e.target.dataset.v);
+  document.querySelectorAll('#starRow button').forEach(b => b.classList.toggle('active', Number(b.dataset.v) <= selectedStars));
+});
+async function submitReview(){
+  if (!selectedStars){ document.getElementById('reviewError').innerHTML = `<div class="error-msg">Pick a star rating first.</div>`; return; }
+  const comment = document.getElementById('reviewComment').value;
+  const res = await fetch(`${API}/trust/reviews`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify({ listingId: currentListing.id, rating: selectedStars, comment }) });
+  const data = await res.json();
+  if (!res.ok){ document.getElementById('reviewError').innerHTML = `<div class="error-msg">${data.message}</div>`; return; }
+  closeModal('reviewModal');
+  alert('Thanks for rating your agent!');
+}
+
+// Chat
+function openChatFromListing(){
+  if (!requireLogin()) return;
+  window.location.href = `thread.html?listingId=${currentListing.id}&otherId=${currentListing.agentId}&otherName=${encodeURIComponent(currentListing.agentName)}`;
+}
+
+// Rent / payment
+function openRentModal(){
+  if (!requireLogin('renter')) return;
+  document.getElementById('rentModalSub').textContent = `${currentListing.title} — ${currentListing.agentName}`;
+  document.getElementById('payFullLabel').textContent = `Pay in full — ${money(currentListing.rentPrice + currentListing.agentFee)}`;
+  document.getElementById('payFeeLabel').textContent = `Pay agent fee only — ${money(currentListing.agentFee)}`;
+  document.getElementById('rentModalError').innerHTML = '';
+  payFull = true;
+  openModal('rentModal');
+}
+function selectPayOption(el, full){
+  document.querySelectorAll('#rentModal .pay-option').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  payFull = full;
+}
+async function initiatePayment(){
+  const errBox = document.getElementById('rentModalError');
+  const btn = document.getElementById('rentConfirmBtn');
+  btn.textContent = 'Processing…';
+  const res = await fetch(`${API}/transactions/initiate`, {
+    method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
+    body: JSON.stringify({ listingId: currentListing.id, payFull, email: state.user.email })
+  });
+  const data = await res.json();
+  btn.textContent = 'Proceed to Paystack →';
+  if (!res.ok){ errBox.innerHTML = `<div class="error-msg">${data.message}</div>`; return; }
+  if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return; }
+  errBox.innerHTML = '<div class=\"error-msg\">Payment checkout is unavailable. Please try again later.</div>';
+}
+function showConfirmStep(txn){
+  document.getElementById('detailBody').innerHTML += `
+    <div class="success-msg" style="margin-top:16px;">
+      Payment reference: ${txn.paymentRef}. Complete payment through Paystack. The app will verify the payment before confirming the rental.
+    </div>
+    <button class="btn btn-dark btn-block" style="margin-top:8px;" onclick="confirmRelease('${txn.id}')">✅ Confirm apartment matches — release payment</button>
+  `;
+}
+async function confirmRelease(txnId){
+  const res = await fetch(`${API}/transactions/${txnId}/confirm`, { method:'POST', headers: authHeaders() });
+  const data = await res.json();
+  if (res.ok){
+    selectedStars = 0;
+    document.querySelectorAll('#starRow button').forEach(b=>b.classList.remove('active'));
+    document.getElementById('reviewComment').value = '';
+    openModal('reviewModal');
+  } else alert(data.message);
+}
+
+loadDetail();
+</script>
+</body>
+</html>

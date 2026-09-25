@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div id="adminContent"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('admin');
+
+async function loadAdmin(){
+  const el = document.getElementById('adminContent');
+  if (!state.user || state.user.role !== 'admin'){ el.innerHTML = `<div class="empty-state">Admin access only.</div>`; return; }
+
+  const [pendingAgentsRes, pendingListingsRes, txnRes, reportsRes, roommatePostsRes] = await Promise.all([
+    fetch(`${API}/admin/pending-agents`, { headers: authHeaders() }),
+    fetch(`${API}/admin/pending-listings`, { headers: authHeaders() }),
+    fetch(`${API}/admin/transactions`, { headers: authHeaders() }),
+    fetch(`${API}/admin/reports`, { headers: authHeaders() }),
+    fetch(`${API}/admin/roommate-posts`, { headers: authHeaders() })
+  ]);
+  const pendingAgents = await pendingAgentsRes.json();
+  const pendingListings = await pendingListingsRes.json();
+  const txnData = await txnRes.json();
+  const reports = (await reportsRes.json()).items;
+  const roommatePosts = (await roommatePostsRes.json()).items;
+
+  el.innerHTML = `
+    <div class="page-header">${STICKER.safety}<h2 style="font-size:1.3rem;">Admin Panel</h2></div>
+    <div class="stat-row"><div class="stat-card"><div class="num">${money(txnData.totalCommission)}</div><div class="lbl">Total commission earned</div></div></div>
+
+    <div class="section-label"><div class="h-icon-row">${STICKER.verified}<h3>Pending agent verifications</h3></div></div>
+    <div id="pendingAgentsList">${pendingAgents.map(a => `
+      <div class="list-row">
+        <div style="flex:1;">
+          <h5 style="font-size:0.9rem; font-family:'Sora';">${a.name}</h5>
+          <span style="font-size:0.76rem; color:var(--grey);">${a.email}</span>
+          <div class="doc-links"><button class="btn-ghost btn-sm" type="button" onclick="openPrivateDoc(${JSON.stringify(a.idDocumentUrl)})">View ID</button><button class="btn-ghost btn-sm" type="button" onclick="openPrivateDoc(${JSON.stringify(a.passportPhotoUrl)})">View Passport Photo</button></div>
+        </div>
+        <button class="btn btn-success btn-sm" onclick="verifyAgent('${a.id}')">Verify</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectAgent('${a.id}')">Reject</button>
+      </div>
+    `).join('') || `<div class="empty-state">No pending agents.</div>`}</div>
+
+    <div class="section-label"><div class="h-icon-row">${STICKER.agent}<h3>Pending listing approvals</h3></div></div>
+    <div id="pendingListingsList">${pendingListings.map(l => `
+      <div class="list-row">
+        <img src="${l.photos?.exterior?.[0]||''}">
+        <div style="flex:1;"><h5 style="font-size:0.9rem; font-family:'Sora';">${l.title}</h5><span style="font-size:0.76rem; color:var(--grey);">${money(l.rentPrice)}/yr</span></div>
+        <button class="btn btn-success btn-sm" onclick="approveListing('${l.id}')">Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectListing('${l.id}')">Reject</button>
+      </div>
+    `).join('') || `<div class="empty-state">No listings pending review.</div>`}</div>
+
+    <div class="section-label"><div class="h-icon-row">${STICKER.safety}<h3>Reported listings</h3></div></div>
+    ${reports.map(r => `<div class="list-row"><div style="flex:1;"><span style="font-size:0.85rem;">${r.reason}</span></div><span class="status-pill available">${r.status}</span></div>`).join('') || `<div class="empty-state">No reports.</div>`}
+
+    <div class="section-label"><div class="h-icon-row">${STICKER.roommate}<h3>Roommate posts</h3></div></div>
+    <div id="roommatePostsList">${roommatePosts.map(p => `
+      <div class="list-row">
+        <div style="flex:1;">
+          <h5 style="font-size:0.9rem; font-family:'Sora';">${p.title}</h5>
+          <span style="font-size:0.76rem; color:var(--grey);">${p.posterName} · ${p.location}</span>
+        </div>
+        <span class="status-pill ${p.status === 'open' ? 'available' : 'rejected'}">${p.status}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeRoommatePost('${p.id}')">Remove</button>
+      </div>
+    `).join('') || `<div class="empty-state">No roommate posts yet.</div>`}</div>
+
+    <div class="section-label"><div class="h-icon-row">${STICKER.chat}<h3>Chat oversight</h3></div></div>
+    <button class="btn-ghost btn-sm" style="padding:12px 20px; border-radius:100px;" onclick="viewAllChats()">View all platform messages</button>
+    <div id="allChatsBox" style="margin-top:16px;"></div>
+  `;
+}
+
+async function openPrivateDoc(path){
+  if (!path) return;
+  if (/^https?:\/\//i.test(path)) { window.open(path, '_blank', 'noopener'); return; }
+  try {
+    const res = await fetch(path.startsWith('http') ? path : `${API}${path.startsWith('/') ? path : '/' + path}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Unable to open document');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { alert('Unable to open this private document.'); }
+}
+async function verifyAgent(id){ await fetch(`${API}/admin/agents/${id}/verify`, { method:'POST', headers: authHeaders() }); loadAdmin(); }
+async function rejectAgent(id){
+  const reason = prompt("Why are you rejecting this agent's verification?");
+  if (reason === null) return;
+  await fetch(`${API}/admin/agents/${id}/reject`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify({ reason }) });
+  loadAdmin();
+}
+async function approveListing(id){ await fetch(`${API}/admin/listings/${id}/approve`, { method:'POST', headers: authHeaders() }); loadAdmin(); }
+async function rejectListing(id){
+  const reason = prompt('Why is this listing being rejected? (the agent will see this)');
+  if (reason === null) return;
+  await fetch(`${API}/admin/listings/${id}/reject`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify({ reason }) });
+  loadAdmin();
+}
+async function removeRoommatePost(id){
+  if (!confirm('Remove this roommate post?')) return;
+  await fetch(`${API}/admin/roommate-posts/${id}`, { method:'DELETE', headers: authHeaders() });
+  loadAdmin();
+}
+async function viewAllChats(){
+  const res = await fetch(`${API}/admin/messages`, { headers: authHeaders() });
+  const data = await res.json();
+  document.getElementById('allChatsBox').innerHTML = data.items.map(m =>
+    `<div style="font-size:0.82rem; padding:12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px;">
+      <strong>${m.senderId.slice(0,6)}</strong> → <strong>${m.receiverId.slice(0,6)}</strong>${m.listingId ? ' (listing chat)' : ' (general)'}<br>${m.body}
+    </div>`
+  ).join('') || '<div class="empty-state">No messages yet.</div>';
+  if(data.total > data.items.length){
+    document.getElementById('allChatsBox').insertAdjacentHTML('beforeend', `<div style="text-align:center; padding:10px; color:var(--grey); font-size:0.8rem;">Showing ${data.items.length} of ${data.total} most recent messages.</div>`);
+  }
+}
+
+loadAdmin();
+</script>
+</body>
+</html>

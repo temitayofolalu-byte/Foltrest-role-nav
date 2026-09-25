@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roommates — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div class="band band-orange">
+    <h1>Looking to <span class="hi">share a place?</span></h1>
+    <p class="sub">Already have an apartment and need someone to split it with — or looking to join someone else's? Post here or browse what's available.</p>
+    <div class="cta-row">
+      <button class="btn btn-white" onclick="openPostModal()">＋ Post a roommate ad</button>
+    </div>
+  </div>
+
+  <div style="margin-top:20px; background:var(--white); border:2px solid var(--line); border-radius:var(--radius-md); padding:16px; display:flex; flex-direction:column; gap:12px;">
+    <input type="text" id="locationInput" placeholder="Search by area — Camp, Obantoko…" style="border:2px solid var(--line); border-radius:100px; padding:13px 18px; font-size:0.9rem;">
+    <div style="display:flex; gap:8px; overflow-x:auto;">
+      <select id="genderFilter" style="border:2px solid var(--line); border-radius:100px; padding:9px 14px; font-size:0.8rem; background:var(--cream); flex-shrink:0;">
+        <option value="">Any gender preference</option>
+        <option value="male">Male roommate</option>
+        <option value="female">Female roommate</option>
+      </select>
+      <select id="maxRentFilter" style="border:2px solid var(--line); border-radius:100px; padding:9px 14px; font-size:0.8rem; background:var(--cream); flex-shrink:0;">
+        <option value="">Any rent share</option>
+        <option value="100000">Under ₦100k</option>
+        <option value="200000">Under ₦200k</option>
+      </select>
+    </div>
+    <button class="btn btn-block" onclick="loadPosts()">Search</button>
+  </div>
+
+  <div class="section-label"><div class="h-icon-row"><svg viewBox="0 0 40 40" width="22" height="22"><circle cx="14" cy="15" r="5.5" fill="#fff"/><circle cx="27" cy="15" r="5.5" fill="#f1691f"/><path d="M5 33c0-5.5 4-9 9-9s9 3.5 9 9" fill="#fff"/><path d="M16 33c0-5.5 4-9 9-9s9 3.5 9 9" fill="#f1691f"/></svg><h3>Available roommate posts</h3></div><span id="postCount"></span></div>
+  <div class="grid" id="postGrid"></div>
+  <div id="loadMoreWrap"></div>
+</div>
+
+<!-- POST MODAL -->
+<div class="modal-overlay" id="postModal">
+  <div class="modal-sheet">
+    <button class="close-modal" onclick="closeModal('postModal')">✕</button>
+    <h3>Post a Roommate Ad</h3>
+    <div id="postError"></div>
+    <div class="form-field"><label>Title</label><input id="pTitle" type="text" placeholder="Need a roommate for my 2-bedroom in Camp"></div>
+    <div class="form-field"><label>Description</label><textarea id="pDesc" rows="3" placeholder="Tell people about the place, house rules, who you're looking for…"></textarea></div>
+    <div class="form-field"><label>Location</label><input id="pLocation" type="text" placeholder="Camp, 6 min walk to Main Gate"></div>
+    <div class="form-field"><label>Rent share (₦/yr, optional)</label><input id="pRentShare" type="number" placeholder="e.g. 150000"></div>
+    <div class="form-field"><label>Move-in date (optional)</label><input id="pMoveIn" type="date"></div>
+    <div class="form-field"><label>Gender preference</label>
+      <select id="pGender"><option value="any">No preference</option><option value="male">Male</option><option value="female">Female</option></select>
+    </div>
+    <button class="btn btn-dark btn-block" onclick="submitPost()">Post Ad</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('roommates');
+let currentPage = 1;
+
+function genderLabel(g){
+  if (g === 'male') return 'Looking for a male roommate';
+  if (g === 'female') return 'Looking for a female roommate';
+  return 'No gender preference';
+}
+
+function cardHtml(p){
+  return `
+    <a class="card" href="#" onclick="openDetail('${p.id}'); return false;">
+      <div class="card-body">
+        <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+          ${p.posterVerified ? '<span class="tag">🌿 Verified user</span>' : ''}
+          <span class="tag tag-orange">${genderLabel(p.genderPreference)}</span>
+        </div>
+        <h4>${p.title}</h4>
+        <div class="loc">${p.location}</div>
+        <p style="font-size:0.85rem; color:var(--grey); margin:10px 0; line-height:1.5;">${(p.description||'').slice(0,100)}${(p.description||'').length>100?'…':''}</p>
+        <div class="price-row">
+          <div class="rent">${p.rentShare ? money(p.rentShare)+'<small>/yr</small>' : 'Rent: ask'}</div>
+          ${p.moveInDate ? `<div class="fee">Move-in ${p.moveInDate}</div>` : ''}
+        </div>
+      </div>
+    </a>
+  `;
+}
+
+function currentFilterParams(){
+  const params = new URLSearchParams();
+  const location = document.getElementById('locationInput').value.trim();
+  const gender = document.getElementById('genderFilter').value;
+  const maxRent = document.getElementById('maxRentFilter').value;
+  if (location) params.set('location', location);
+  if (gender) params.set('genderPreference', gender);
+  if (maxRent) params.set('maxRent', maxRent);
+  return params;
+}
+
+async function loadPosts(){
+  currentPage = 1;
+  const params = currentFilterParams();
+  params.set('page', '1');
+  const res = await fetch(`${API}/roommates?${params}`);
+  const data = await res.json();
+  document.getElementById('postCount').textContent = `${data.total} post${data.total===1?'':'s'}`;
+  const grid = document.getElementById('postGrid');
+  if (!data.items.length){ grid.innerHTML = `<div class="empty-state">No roommate posts match those filters yet.</div>`; document.getElementById('loadMoreWrap').innerHTML=''; return; }
+  grid.innerHTML = data.items.map(cardHtml).join('');
+  renderLoadMore(data.hasMore);
+}
+
+function renderLoadMore(hasMore){
+  const wrap = document.getElementById('loadMoreWrap');
+  wrap.innerHTML = hasMore ? `<button class="btn-ghost" style="margin:20px auto; display:block; padding:12px 28px; border-radius:100px;" onclick="loadMorePosts()">Load more</button>` : '';
+}
+
+async function loadMorePosts(){
+  currentPage += 1;
+  const params = currentFilterParams();
+  params.set('page', String(currentPage));
+  const res = await fetch(`${API}/roommates?${params}`);
+  const data = await res.json();
+  document.getElementById('postGrid').insertAdjacentHTML('beforeend', data.items.map(cardHtml).join(''));
+  renderLoadMore(data.hasMore);
+}
+
+async function openDetail(id){
+  const res = await fetch(`${API}/roommates/${id}`);
+  const p = await res.json();
+  const isMine = state.user && state.user.id === p.posterId;
+  alert(
+    `${p.title}\n\nLocation: ${p.location}\n${genderLabel(p.genderPreference)}\n${p.rentShare ? 'Rent share: ' + money(p.rentShare) + '/yr' : ''}\n${p.moveInDate ? 'Move-in: ' + p.moveInDate : ''}\n\n${p.description || ''}`
+  );
+  if (!isMine) {
+    if (!requireLogin()) return;
+    window.location.href = `thread.html?otherId=${p.posterId}&otherName=${encodeURIComponent(p.posterName || 'User')}`;
+  }
+}
+
+function openPostModal(){
+  if (!requireLogin()) return;
+  document.getElementById('postError').innerHTML = '';
+  openModal('postModal');
+}
+
+async function submitPost(){
+  const body = {
+    title: document.getElementById('pTitle').value,
+    description: document.getElementById('pDesc').value,
+    location: document.getElementById('pLocation').value,
+    rentShare: document.getElementById('pRentShare').value || null,
+    moveInDate: document.getElementById('pMoveIn').value || null,
+    genderPreference: document.getElementById('pGender').value,
+  };
+  const res = await fetch(`${API}/roommates`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok){ document.getElementById('postError').innerHTML = `<div class="error-msg">${data.message}</div>`; return; }
+  closeModal('postModal');
+  document.getElementById('pTitle').value=''; document.getElementById('pDesc').value=''; document.getElementById('pLocation').value=''; document.getElementById('pRentShare').value=''; document.getElementById('pMoveIn').value='';
+  loadPosts();
+}
+
+loadPosts();
+</script>
+
+</body>
+</html>

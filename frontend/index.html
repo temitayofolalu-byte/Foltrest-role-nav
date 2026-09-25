@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foltrest — Find a Home Near FUNAAB, No Wahala</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* ================= HOME-ONLY STYLES ================= */
+
+  /* ---- Hero ---- */
+  .hero-photo{
+    position:relative; border-radius:var(--radius-lg); overflow:hidden; margin-top:12px;
+    min-height:420px; display:flex; align-items:flex-end;
+    background:linear-gradient(150deg,#6f97ba 0%,#5b7d92 45%,#3a4a3f 100%);
+  }
+  /* Decorative placeholder house graphic, shifted right — swap this whole
+     .hero-photo-art block out for a real <img>/<video> covering the hero
+     once photos/video are ready. Keep .hero-overlay + .hero-content as-is. */
+  .hero-photo-art{ position:absolute; inset:0; opacity:0.9; }
+  .hero-overlay{
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(10,20,12,0.15) 0%, rgba(10,20,12,0.15) 35%, rgba(10,20,12,0.72) 100%);
+  }
+  .hero-content{ position:relative; z-index:1; padding:40px 32px 34px; width:100%; }
+  .hero-content .tag-pill{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.15);
+    padding:5px 12px; border-radius:100px; margin-bottom:14px; font-size:0.72rem; color:var(--white); font-weight:700;
+  }
+  .hero-content h1{ color:var(--white); font-weight:800; font-size:clamp(1.9rem,4.6vw,3rem); line-height:1.12; max-width:16ch; }
+  .hero-content h1 .hi{ background:var(--orange); padding:0 10px; display:inline-block; border-radius:8px; transform:rotate(-2deg); }
+  .hero-content .sub{ color:rgba(255,255,255,0.88); margin-top:12px; max-width:42ch; font-size:0.98rem; line-height:1.6; }
+  .hero-search{
+    background:var(--white); border-radius:100px; padding:8px; display:flex; gap:8px;
+    margin-top:22px; max-width:480px; box-shadow:0 10px 28px rgba(0,0,0,0.28);
+  }
+  .hero-search input{ flex:1; border:none; padding:10px 6px 10px 14px; font-size:0.9rem; border-radius:100px; }
+  .hero-search input:focus{ outline:none; }
+  .hero-content .cta-row{ margin-top:18px; }
+  .hero-trust{ margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; }
+  .hero-trust span{
+    display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.15);
+    color:var(--white); font-size:0.72rem; font-weight:700; padding:5px 11px; border-radius:100px;
+  }
+
+  /* ---- Browse by location ---- */
+  .location-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(min-width:640px){ .location-grid{ grid-template-columns:repeat(4,1fr); } }
+  .location-card{
+    background:var(--cream); border-radius:var(--radius-sm); padding:16px 18px; font-weight:700; font-size:0.92rem;
+    display:flex; align-items:center; justify-content:space-between; transition:background .2s;
+  }
+  .location-card:hover{ background:var(--green-soft); }
+  .location-card span.arrow{ color:var(--green); font-weight:800; }
+
+  /* ---- Why Foltrest (sticker cards) ---- */
+  .why-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media(min-width:700px){ .why-grid{ grid-template-columns:repeat(4,1fr); } }
+  .why-card{ background:var(--cream); border-radius:var(--radius-md); padding:20px 16px; text-align:left; }
+  .why-card svg{ margin-bottom:12px; }
+  .why-card h4{ font-size:0.95rem; margin-bottom:4px; }
+  .why-card p{ font-size:0.8rem; color:var(--grey); line-height:1.5; }
+
+  /* ---- Roommate / Agent callouts ---- */
+  .callout-row{ display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+  @media(min-width:700px){ .callout-row{ flex-direction:row; } }
+  .callout{
+    flex:1; border-radius:var(--radius-md); padding:22px; display:flex; align-items:center; gap:16px; color:var(--white);
+  }
+  .callout.tone-green{ background:var(--green); }
+  .callout.tone-orange{ background:var(--orange); }
+  .callout .icon-badge{ flex-shrink:0; }
+  .callout h4{ font-size:1rem; margin-bottom:4px; }
+  .callout p{ font-size:0.82rem; opacity:0.92; line-height:1.5; margin-bottom:12px; }
+  .callout a{ background:var(--white); color:var(--ink); font-size:0.78rem; font-weight:800; padding:8px 16px; border-radius:100px; display:inline-block; }
+  .callout.tone-orange a{ color:var(--orange-dark); }
+
+  /* ---- Safety tips ---- */
+  .safety-box{ display:flex; align-items:flex-start; gap:14px; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-md); padding:20px; margin-top:14px; }
+  .safety-box h4{ font-size:0.98rem; margin-bottom:6px; }
+  .safety-box p{ font-size:0.85rem; color:var(--grey); line-height:1.6; }
+
+  /* ---- About blurb ---- */
+  .about-blurb{ text-align:center; padding:34px 0 6px; }
+  .about-blurb p{ max-width:52ch; margin:0 auto; color:var(--grey); font-size:0.9rem; line-height:1.6; }
+
+  /* ---- FAQ ---- */
+  .faq-list{ display:flex; flex-direction:column; gap:10px; max-width:760px; margin-top:14px; }
+  .faq-item{ border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; }
+  .faq-q{ padding:16px 20px; font-weight:700; font-size:0.92rem; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--white); }
+  .faq-q .plus{ font-size:1.2rem; color:var(--orange); transition:transform 0.2s ease; flex-shrink:0; }
+  .faq-item.open .faq-q .plus{ transform:rotate(45deg); }
+  .faq-a{ max-height:0; overflow:hidden; transition:max-height 0.25s ease; background:var(--cream); }
+  .faq-item.open .faq-a{ max-height:200px; }
+  .faq-a p{ padding:0 20px 16px; font-size:0.85rem; color:var(--grey); line-height:1.6; }
+
+  /* ---- Footer ---- */
+  .site-footer{ background:var(--ink); color:var(--white); border-radius:var(--radius-lg); padding:34px 32px; margin:20px 0 40px; }
+  .site-footer .foot-brand{ font-family:'Sora'; font-weight:800; font-size:1.15rem; }
+  .site-footer .foot-brand .trest{ color:var(--orange); }
+  .site-footer .foot-desc{ font-size:0.82rem; color:#9fae98; max-width:40ch; line-height:1.6; margin:10px 0 24px; }
+  .foot-cols{ display:grid; grid-template-columns:1fr; gap:20px; }
+  @media(min-width:640px){ .foot-cols{ grid-template-columns:repeat(3,1fr); } }
+  .foot-cols h5{ font-size:0.74rem; color:var(--orange); font-weight:800; letter-spacing:0.03em; margin-bottom:10px; }
+  .foot-cols a, .foot-cols span{ display:block; font-size:0.82rem; color:#c8d0c5; margin-bottom:9px; }
+  .foot-social{ display:flex; gap:14px; margin-top:24px; }
+  .foot-social a{ color:#9fae98; font-size:1rem; }
+  .foot-bottom{ font-size:0.72rem; color:#5f6b5b; margin-top:22px; }
+
+  .reveal{ opacity:0; transform:translateY(16px); transition:opacity .5s ease, transform .5s ease; }
+  .reveal.in-view{ opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero-photo">
+    <div class="hero-photo-art">
+      <!--
+        REAL PHOTO/VIDEO GOES HERE.
+        Replace this whole <svg> block with either:
+          <img src="assets/hero-photo.jpg" style="width:100%;height:100%;object-fit:cover;">
+        or a looping muted video:
+          <video autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;">
+            <source src="assets/hero-video.mp4" type="video/mp4">
+          </video>
+        Leave .hero-overlay and everything in .hero-content untouched.
+      -->
+      <svg viewBox="0 0 900 420" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+        <rect width="900" height="420" fill="#6f97ba"/>
+        <rect y="260" width="900" height="160" fill="#8b9b83"/>
+        <polygon points="430,260 630,120 830,260" fill="#2a1f16"/>
+        <rect x="470" y="260" width="320" height="140" fill="#4a3728"/>
+        <rect x="500" y="285" width="48" height="48" fill="#f1691f" opacity="0.85"/>
+        <rect x="570" y="285" width="48" height="48" fill="#cfe0e8"/>
+        <rect x="640" y="285" width="48" height="48" fill="#cfe0e8"/>
+        <rect x="710" y="285" width="48" height="48" fill="#cfe0e8"/>
+        <rect x="605" y="345" width="44" height="55" fill="#2a1f16"/>
+      </svg>
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <span class="tag-pill">📍 FUNAAB · Abeokuta</span>
+      <h1>Find a home, <span class="hi">no wahala</span></h1>
+      <p class="sub">Verified agents. Real photos. Pay and secure your apartment right here near FUNAAB — no more chasing agents around Camp.</p>
+
+      <div class="hero-search">
+        <input type="text" id="heroSearchInput" placeholder="Search by area — Camp, Obantoko…">
+        <button class="btn" onclick="goToBrowse()">Search</button>
+      </div>
+
+      <div class="cta-row" style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a class="btn btn-white" href="browse.html">Browse apartments</a>
+        <a class="btn btn-ghost-light" href="auth.html">Become an agent</a>
+      </div>
+
+      <div class="hero-trust">
+        <span>🛡️ Verified agents</span>
+        <span>🔒 Escrow-protected</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BROWSE BY LOCATION ============ -->
+  <section class="reveal" style="padding-top:36px;">
+    <div class="section-label"><h3>Browse by location</h3></div>
+       <div class="location-grid">
+      <a class="location-card" href="browse.html?q=Camp">Camp <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Osiele">Osiele <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Isolucele">Isolucele <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Isolu">Isolu <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Oluwokeesin">Oluwokeesin <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Zoo">Zoo <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Accord">Accord <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Harmony">Harmony <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Gate">Gate <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Kofesu">Kofesu <span class="arrow">→</span></a>
+      <a class="location-card" href="browse.html?q=Agbede">Agbede <span class="arrow">→</span></a>
+    </div>
+  </section>
+
+  <!-- ============ FRESH LISTINGS (live) ============ -->
+  <section class="reveal">
+    <div class="section-label"><h3>Fresh on Foltrest</h3><a href="browse.html" style="font-size:0.78rem; color:var(--green); font-weight:700;">See all →</a></div>
+    <div class="grid" id="freshListingsGrid">
+      <div class="empty-state" style="padding:30px 0;">Loading listings…</div>
+    </div>
+  </section>
+
+  <!-- ============ WHY FOLTREST ============ -->
+  <section class="reveal" style="padding-top:20px;">
+    <div class="section-label"><h3>Why Foltrest?</h3></div>
+    <div class="why-grid">
+      <div class="why-card">
+        <svg viewBox="0 0 60 60" width="34" height="34"><rect x="8" y="16" width="44" height="30" rx="4" fill="#fff" stroke="#1f7a46" stroke-width="2"/><circle cx="20" cy="31" r="6" fill="#f1691f"/><circle cx="46" cy="46" r="11" fill="#1f7a46"/><path d="M41 46l3.5 3.5L52 41.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <h4>Verified agents</h4>
+        <p>ID-checked by our admin team before they can list.</p>
+      </div>
+      <div class="why-card">
+        <svg viewBox="0 0 60 60" width="34" height="34"><rect x="14" y="26" width="32" height="24" rx="5" fill="#f1691f"/><path d="M20 26v-6a10 10 0 0 1 20 0v6" stroke="#12210f" stroke-width="3" fill="none"/><circle cx="30" cy="36" r="4.5" fill="#fff"/></svg>
+        <h4>Escrow payments</h4>
+        <p>Your money is held safely until you get your keys.</p>
+      </div>
+      <div class="why-card">
+        <svg viewBox="0 0 60 60" width="34" height="34"><path d="M10 18h34a5 5 0 0 1 5 5v14a5 5 0 0 1-5 5H26l-9 8v-8h-7a5 5 0 0 1-5-5V23a5 5 0 0 1 5-5Z" fill="#1f7a46"/><path d="M20 29l7-6 7 6v9h-5v-5h-4v5h-5z" fill="#fff"/></svg>
+        <h4>In-app chat</h4>
+        <p>Ask questions and arrange inspections before you commit.</p>
+      </div>
+      <div class="why-card">
+        <svg viewBox="0 0 60 60" width="34" height="34"><polygon points="30,8 36,24 53,24 39,34 44,50 30,40 16,50 21,34 7,24 24,24" fill="#f1691f"/><circle cx="30" cy="29" r="6" fill="#fff"/><path d="M27 29l2 2 4-4" stroke="#1f7a46" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <h4>Real ratings</h4>
+        <p>See how an agent actually performed for past tenants.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROOMMATE + AGENT CALLOUTS ============ -->
+  <section class="reveal" style="padding-top:8px;">
+    <div class="callout-row">
+      <div class="callout tone-green">
+        <svg class="icon-badge" viewBox="0 0 60 60" width="42" height="42"><circle cx="22" cy="24" r="8" fill="#fff"/><circle cx="40" cy="24" r="8" fill="#f1691f"/><path d="M8 48c0-8 6-13 14-13s14 5 14 13" fill="#fff"/><path d="M24 48c0-8 6-13 14-13s14 5 14 13" fill="#f1691f"/></svg>
+        <div>
+          <h4>Need a roommate?</h4>
+          <p>Match with fellow students and split rent.</p>
+          <a href="roommates.html">Find a roommate →</a>
+        </div>
+      </div>
+      <div class="callout tone-orange">
+        <svg class="icon-badge" viewBox="0 0 60 60" width="42" height="42"><rect x="10" y="20" width="40" height="30" rx="3" fill="#fff"/><polygon points="10,20 30,8 50,20" fill="#12210f"/><rect x="18" y="28" width="8" height="8" fill="#f1691f"/><rect x="34" y="28" width="8" height="8" fill="#1f7a46"/></svg>
+        <div>
+          <h4>List as a verified agent</h4>
+          <p>No more WhatsApp groups — get paid safely.</p>
+          <a href="auth.html">Become an agent →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STUDENT REVIEWS (live) ============ -->
+  <section class="reveal" style="padding-top:20px;">
+    <div class="section-label"><h3>Student reviews</h3></div>
+    <div id="homeReviews" class="grid">
+      <div class="empty-state" style="padding:30px 0;">Loading reviews…</div>
+    </div>
+  </section>
+
+  <!-- ============ SAFETY TIPS ============ -->
+  <section class="reveal">
+    <div class="safety-box">
+      <svg viewBox="0 0 60 60" width="30" height="30" style="flex-shrink:0;"><path d="M30 6l20 8v14c0 14-9 24-20 26-11-2-20-12-20-26V14l20-8Z" fill="#1f7a46"/><path d="M22 30l6 6 12-12" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <div>
+        <h4>Safety tips</h4>
+        <p>Never pay outside Foltrest's escrow. Always inspect the apartment before paying. Report any agent who asks for off-platform payment.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT BLURB ============ -->
+  <div class="about-blurb reveal">
+    <p>Foltrest was built by a FUNAAB student to make house-hunting fairer and easier for the whole community.</p>
+  </div>
+
+  <!-- ============ FAQ ============ -->
+  <section class="reveal">
+    <div class="section-label"><h3>Questions people ask</h3></div>
+    <div class="faq-list" id="faqList">
+      <div class="faq-item">
+        <div class="faq-q">Is my payment safe if I pay through Foltrest? <span class="plus">+</span></div>
+        <div class="faq-a"><p>Yes — payments go into escrow and are only released to the agent once you've confirmed the apartment is yours.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How are agents verified? <span class="plus">+</span></div>
+        <div class="faq-a"><p>Every agent uploads a valid ID, which our admin team reviews before they're allowed to list.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Which areas does Foltrest cover? <span class="plus">+</span></div>
+        <div class="faq-a"><p>We focus on areas around FUNAAB — Camp, Obantoko, Kobiti, and nearby student neighborhoods.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I message an agent before paying? <span class="plus">+</span></div>
+        <div class="faq-a"><p>Yes — use in-app messaging to ask questions or arrange an inspection before you commit to anything.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLOSING CTA ============ -->
+  <div class="band band-orange reveal" style="margin-top:34px;">
+    <h1 style="max-width:20ch;">Ready to find your <span class="hi" style="background:var(--green);">next apartment</span>?</h1>
+    <p class="sub">Browse everything currently available near FUNAAB.</p>
+    <div class="cta-row">
+      <a class="btn btn-white" href="browse.html">Browse apartments</a>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer reveal">
+    <div class="foot-brand">Fol<span class="trest">trest</span></div>
+    <p class="foot-desc">Find verified off-campus accommodation around FUNAAB — trusted agents, safe bookings, zero scams.</p>
+    <div class="foot-cols">
+      <div>
+        <h5>QUICK LINKS</h5>
+        <a href="index.html">Home</a>
+        <a href="browse.html">Browse</a>
+        <a href="roommates.html">Roommates</a>
+      </div>
+      <div>
+        <h5>CONTACT</h5>
+        <span>Abeokuta, Ogun State, Nigeria</span>
+        <a href="mailto:hello@foltrest.com">hello@foltrest.com</a>
+      </div>
+      <div>
+        <h5>LEGAL</h5>
+        <span>Privacy Policy</span>
+        <span>Terms &amp; Conditions</span>
+      </div>
+    </div>
+    <div class="foot-social">
+      <a href="#" aria-label="Instagram">📷</a>
+      <a href="#" aria-label="X">🕊️</a>
+      <a href="#" aria-label="WhatsApp">💬</a>
+    </div>
+    <div class="foot-bottom">© 2026 Foltrest. All rights reserved.</div>
+  </footer>
+
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('home');
+
+function goToBrowse(){
+  const q = document.getElementById('heroSearchInput').value.trim();
+  window.location.href = 'browse.html' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+}
+document.getElementById('heroSearchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') goToBrowse();
+});
+
+// ---- Fresh listings (live from the same API browse.html uses) ----
+function freshCardHtml(l){
+  return `
+    <a class="card" href="listing.html?id=${l.id}">
+      <div class="card-img">
+        <img src="${(l.photos?.exterior?.[0]) || ''}">
+        ${l.agentVerified ? '<div class="badge">🌿 Verified</div>' : ''}
+      </div>
+      <div class="card-body">
+        <h4>${l.title}</h4>
+        <div class="loc">${l.location}</div>
+        <div class="price-row">
+          <div class="rent">${money(l.rentPrice)}<small>/yr</small></div>
+        </div>
+      </div>
+    </a>
+  `;
+}
+async function loadFreshListings(){
+  const grid = document.getElementById('freshListingsGrid');
+  try {
+    const res = await fetch(`${API}/listings?page=1`);
+    const data = await res.json();
+    const items = (data.items || []).slice(0, 3);
+    grid.innerHTML = items.length
+      ? items.map(freshCardHtml).join('')
+      : `<div class="empty-state">No listings yet — check back soon.</div>`;
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state">Couldn't load listings right now.</div>`;
+  }
+}
+loadFreshListings();
+
+// ---- Student reviews (live from the site-reviews endpoint) ----
+async function loadHomeReviews(){
+  const wrap = document.getElementById('homeReviews');
+  try {
+    const res = await fetch(`${API}/trust/site-reviews`);
+    const data = await res.json();
+    const reviews = (data.reviews || []).slice(0, 3);
+    wrap.innerHTML = reviews.length
+      ? reviews.map(r => `
+          <div class="card" style="padding:18px;">
+            <div style="color:var(--orange); font-size:0.85rem; margin-bottom:8px;">${'★'.repeat(Number(r.rating))}${'☆'.repeat(5-Number(r.rating))}</div>
+            <p style="font-size:0.85rem; color:var(--ink); line-height:1.5;">${r.comment || 'No comment.'}</p>
+          </div>
+        `).join('')
+      : `<div class="empty-state">No reviews yet — be the first to share your experience!</div>`;
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty-state">No reviews yet — be the first to share your experience!</div>`;
+  }
+}
+loadHomeReviews();
+
+// ---- FAQ accordion ----
+document.getElementById('faqList').addEventListener('click', (e) => {
+  const item = e.target.closest('.faq-item');
+  if (!item) return;
+  const wasOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!wasOpen) item.classList.add('open');
+});
+
+// ---- Scroll-reveal ----
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting){ entry.target.classList.add('in-view'); revealObserver.unobserve(entry.target); }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+</script>
+</body>
+</html>

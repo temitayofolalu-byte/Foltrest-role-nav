@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse Apartments — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div class="band">
+    <h1>Find a home, <span class="hi">no wahala</span></h1>
+    <p class="sub">Verified agents. Real photos. Pay and secure your apartment right here — no more chasing agents around Camp.</p>
+    <div class="cta-row">
+      <button class="btn btn-white" onclick="document.getElementById('searchInput').focus()">Browse apartments</button>
+      <a class="btn btn-ghost-light" href="auth.html">Become an agent</a>
+    </div>
+  </div>
+
+  <div style="margin-top:20px; background:var(--white); border:2px solid var(--line); border-radius:var(--radius-md); padding:16px; display:flex; flex-direction:column; gap:12px;">
+    <input type="text" id="searchInput" placeholder="Search by area — Camp, Obantoko…" style="border:2px solid var(--line); border-radius:100px; padding:13px 18px; font-size:0.9rem;">
+    <div style="display:flex; gap:8px; overflow-x:auto;">
+      <select id="minPrice" style="border:2px solid var(--line); border-radius:100px; padding:9px 14px; font-size:0.8rem; background:var(--cream); flex-shrink:0;"><option value="">Any min price</option><option value="150000">₦150k+</option><option value="300000">₦300k+</option></select>
+      <select id="maxPrice" style="border:2px solid var(--line); border-radius:100px; padding:9px 14px; font-size:0.8rem; background:var(--cream); flex-shrink:0;"><option value="">Any max price</option><option value="250000">Under ₦250k</option><option value="400000">Under ₦400k</option></select>
+      <select id="roomsFilter" style="border:2px solid var(--line); border-radius:100px; padding:9px 14px; font-size:0.8rem; background:var(--cream); flex-shrink:0;"><option value="">Any rooms</option><option value="Self-con">Self-con</option><option value="1 Bedroom">1 Bedroom</option><option value="2 Bedroom">2 Bedroom</option></select>
+    </div>
+    <button class="btn btn-block" onclick="loadListings()">Search Listings</button>
+  </div>
+
+  <div class="section-label"><div class="h-icon-row"><svg viewBox="0 0 40 40" width="22" height="22"><circle cx="17" cy="17" r="10" fill="#fff" stroke="#1f7a46" stroke-width="2.4"/><path d="M25 25l8 8" stroke="#12210f" stroke-width="3" stroke-linecap="round"/><circle cx="17" cy="17" r="4" fill="#f1691f"/></svg><h3>Available near you</h3></div><span id="listingCount"></span></div>
+  <div class="grid" id="listingGrid"></div>
+  <div id="loadMoreWrap"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('browse');
+let currentPage = 1;
+
+function cardHtml(l){
+  return `
+    <a class="card" href="listing.html?id=${l.id}">
+      <div class="card-img">
+        <img src="${(l.photos?.exterior?.[0]) || ''}">
+        ${l.agentVerified ? '<div class="badge">🌿 Verified</div>' : ''}
+        ${l.status === 'rented' ? '<div class="badge badge-orange">Rented</div>' : ''}
+        ${l.agentLowRated ? '<div class="badge badge-warn">⚠ Low-rated agent</div>' : ''}
+      </div>
+      <div class="card-body">
+        <h4>${l.title}</h4>
+        <div class="loc">${l.location}</div>
+        <div class="price-row">
+          <div class="rent">${money(l.rentPrice)}<small>/yr</small></div>
+          <div class="fee">+${money(l.agentFee)} fee</div>
+        </div>
+      </div>
+    </a>
+  `;
+}
+
+function currentFilterParams(){
+  const params = new URLSearchParams();
+  const search = document.getElementById('searchInput').value.trim();
+  const minPrice = document.getElementById('minPrice').value;
+  const maxPrice = document.getElementById('maxPrice').value;
+  const rooms = document.getElementById('roomsFilter').value;
+  if (search) params.set('search', search);
+  if (minPrice) params.set('minPrice', minPrice);
+  if (maxPrice) params.set('maxPrice', maxPrice);
+  if (rooms) params.set('rooms', rooms);
+  return params;
+}
+
+async function loadListings(){
+  currentPage = 1;
+  const params = currentFilterParams();
+  params.set('page', '1');
+  const res = await fetch(`${API}/listings?${params}`);
+  const data = await res.json();
+  document.getElementById('listingCount').textContent = `${data.total} listing${data.total===1?'':'s'}`;
+  const grid = document.getElementById('listingGrid');
+  if (!data.items.length){ grid.innerHTML = `<div class="empty-state">No listings match those filters yet.</div>`; document.getElementById('loadMoreWrap').innerHTML=''; return; }
+  grid.innerHTML = data.items.map(cardHtml).join('');
+  renderLoadMore(data.hasMore);
+}
+
+function renderLoadMore(hasMore){
+  const wrap = document.getElementById('loadMoreWrap');
+  wrap.innerHTML = hasMore ? `<button class="btn-ghost" style="margin:20px auto; display:block; padding:12px 28px; border-radius:100px;" onclick="loadMoreListings()">Load more</button>` : '';
+}
+
+async function loadMoreListings(){
+  currentPage += 1;
+  const params = currentFilterParams();
+  params.set('page', String(currentPage));
+  const res = await fetch(`${API}/listings?${params}`);
+  const data = await res.json();
+  document.getElementById('listingGrid').insertAdjacentHTML('beforeend', data.items.map(cardHtml).join(''));
+  renderLoadMore(data.hasMore);
+}
+
+// Pick up a search term passed from the home page (browse.html?q=...)
+const incomingQuery = new URLSearchParams(window.location.search).get('q');
+if (incomingQuery) document.getElementById('searchInput').value = incomingQuery;
+
+loadListings();
+</script>
+
+</body>
+</html>

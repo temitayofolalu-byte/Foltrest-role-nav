@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div class="page-header">
+    <a class="back-btn" href="messages.html">←</a>
+    <strong id="threadTitle" style="font-family:'Sora'; font-size:1.05rem;">Conversation</strong>
+  </div>
+  <div class="chat-thread" id="threadMessages"></div>
+</div>
+
+<div class="chat-input-bar">
+  <input id="chatInput" type="text" placeholder="Type a message…">
+  <button onclick="sendMessage()">➤</button>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('messages');
+if (!requireLogin()) { /* redirected */ }
+
+const params = new URLSearchParams(window.location.search);
+let listingId = params.get('listingId') || null;
+let otherId = params.get('otherId') || null;
+let otherName = params.get('otherName') || null;
+const otherRole = params.get('otherRole') || null;
+
+async function resolveAdminIfNeeded(){
+  if (otherRole === 'admin' && !otherId){
+    const res = await fetch(`${API}/admin/support-contact`, { headers: authHeaders() });
+    const admin = await res.json();
+    if (admin){ otherId = admin.id; otherName = admin.name; listingId = null; }
+  }
+}
+
+async function loadThread(){
+  await resolveAdminIfNeeded();
+  if (!otherId){ document.getElementById('threadMessages').innerHTML = '<div class="empty-state">No conversation selected.</div>'; return; }
+  document.getElementById('threadTitle').textContent = otherName || 'Conversation';
+  const url = listingId ? `${API}/messages/thread/${listingId}` : `${API}/messages/general/${otherId}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  const msgs = await res.json();
+  document.getElementById('threadMessages').innerHTML = msgs.map(m =>
+    `<div class="msg-bubble ${m.senderId===state.user.id?'msg-mine':'msg-theirs'}">${m.body}</div>`
+  ).join('') || '<div class="empty-state">Say hello 👋</div>';
+}
+
+async function sendMessage(){
+  const input = document.getElementById('chatInput');
+  const body = input.value.trim();
+  if (!body || !otherId) return;
+  await fetch(`${API}/messages`, {
+    method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()},
+    body: JSON.stringify({ listingId, receiverId: otherId, body })
+  });
+  input.value = '';
+  loadThread();
+}
+document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+loadThread();
+</script>
+</body>
+</html>

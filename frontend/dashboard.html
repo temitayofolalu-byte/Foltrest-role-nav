@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Dashboard — Foltrest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="wrap page-pad">
+  <div id="dashboardContent"></div>
+</div>
+
+<!-- POST LISTING MODAL -->
+<div class="modal-overlay" id="postModal">
+  <div class="modal-sheet">
+    <button class="close-modal" onclick="closeModal('postModal')">✕</button>
+    <h3>Post a New Apartment</h3>
+    <div class="guideline-box" id="guidelineBox"></div>
+    <div id="postError"></div>
+    <div class="form-field"><label>Title</label><input id="pTitle" type="text" placeholder="Self-Contained Studio, Camp"></div>
+    <div class="form-field"><label>Description</label><textarea id="pDesc" rows="3"></textarea></div>
+    <div class="form-field"><label>Location</label><input id="pLocation" type="text" placeholder="Camp, 6 min walk to Main Gate"></div>
+    <div class="form-field"><label>Rooms</label><select id="pRooms"><option>Self-con</option><option>1 Bedroom</option><option>2 Bedroom</option></select></div>
+    <div class="form-field"><label>Annual rent (₦)</label><input id="pRent" type="number"></div>
+    <div class="form-field"><label>Agent fee (₦)</label><input id="pFee" type="number"></div>
+    <div class="form-field"><label>Exterior photos</label><input id="pExtPhoto" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="pExtStatus" class="form-hint"></div></div>
+    <div class="form-field"><label>Interior photos</label><input id="pIntPhoto" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="pIntStatus" class="form-hint"></div></div>
+    <div class="form-field"><label>Payout bank account</label><input id="pBankName" placeholder="Account name"><input id="pBankNumber" placeholder="10-digit account number" maxlength="10"><input id="pBankCode" placeholder="Bank code (e.g. 058)"><button class="btn-ghost btn-sm" type="button" onclick="saveBank()">Save payout account</button><div id="bankStatus" class="form-hint"></div></div>
+    <button class="btn btn-dark btn-block" onclick="submitListing()">Submit for Review</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/common.js"></script>
+<script>
+renderNav('dashboard');
+
+async function loadDashboard(){
+  const el = document.getElementById('dashboardContent');
+  if (!state.user){ el.innerHTML = `<div class="empty-state">Log in as an agent to see your dashboard.<br><a class="btn btn-dark" style="margin-top:14px;" href="auth.html">Log in</a></div>`; return; }
+  if (state.user.role !== 'agent'){ el.innerHTML = `<div class="empty-state">This dashboard is for agent accounts only.</div>`; return; }
+
+  const res = await fetch(`${API}/listings/mine/all`, { headers: authHeaders() });
+  const data = await res.json();
+  el.innerHTML = `
+    <div class="page-header"><svg viewBox="0 0 40 40" width="26" height="26"><rect x="7" y="14" width="26" height="20" rx="2" fill="#fff"/><polygon points="7,14 20,5 33,14" fill="#12210f"/><rect x="12" y="19" width="6" height="6" fill="#f1691f"/><rect x="22" y="19" width="6" height="6" fill="#1f7a46"/></svg><h2 style="font-size:1.3rem;">Welcome back, ${state.user.name}</h2></div>
+    ${!state.user.verified ? `<div class="error-msg">Your account is pending admin verification (ID + passport review). ${state.user.verificationRejectionReason ? `<br><strong>Reason:</strong> ${state.user.verificationRejectionReason}` : ''} <a href="thread.html?otherRole=admin" style="text-decoration:underline; font-weight:700;">Message admin</a></div>` : ''}
+    <div class="stat-row">
+      <div class="stat-card"><div class="num">${data.stats.active}</div><div class="lbl">Active listings</div></div>
+      <div class="stat-card"><div class="num">${data.stats.rented}</div><div class="lbl">Rented</div></div>
+      <div class="stat-card"><div class="num">${money(data.stats.feesEarned)}</div><div class="lbl">Fees earned</div></div>
+    </div>
+    <div style="display:flex; gap:10px; margin:16px 0 24px; flex-wrap:wrap;">
+      <button class="btn btn-block" style="flex:1;" onclick="openPostModal()">＋ Post a New Apartment</button>
+      <a class="btn-ghost btn-sm" style="padding:14px 20px; border-radius:100px;" href="thread.html?otherRole=admin">💬 Message Admin</a>
+    </div>
+    <div id="agentListings"></div>
+  `;
+  document.getElementById('agentListings').innerHTML = data.listings.map(l => `
+    <div class="list-row">
+      <img src="${l.photos?.exterior?.[0] || ''}">
+      <div style="flex:1;">
+        <h5 style="font-size:0.9rem; font-family:'Sora';">${l.title}</h5>
+        <span style="font-size:0.76rem; color:var(--grey);">${money(l.rentPrice)}/yr · ${money(l.agentFee)} fee</span>
+        ${l.verificationStatus === 'rejected' ? `<div class="rejection-note">Rejected: ${l.rejectionReason}</div>` : ''}
+      </div>
+      <span class="status-pill ${l.verificationStatus}">${l.verificationStatus}</span>
+    </div>
+  `).join('') || `<div class="empty-state">No listings yet — post your first apartment above.</div>`;
+}
+
+function openPostModal(){
+  if (!state.user.verified){ alert('Your agent account needs admin verification before posting.'); return; }
+  document.getElementById('postError').innerHTML = '';
+  fetch(`${API}/listings/guidelines`).then(r=>r.json()).then(guidelines => {
+    document.getElementById('guidelineBox').innerHTML = `<h5>📋 Posting guidelines</h5><ul>${guidelines.map(g=>`<li>${g}</li>`).join('')}</ul>`;
+  });
+  openModal('postModal');
+}
+async function uploadPhotos(input,statusId){const files=[...input.files];if(!files.length)return[];const out=[];document.getElementById(statusId).textContent='Uploading…';for(const f of files){const fd=new FormData();fd.append('file',f);const r=await fetch(`${API}/uploads/listing-photo`,{method:'POST',headers:authHeaders(),body:fd});const d=await r.json();if(!r.ok)throw new Error(d.message||'Photo upload failed');out.push(d.url);}document.getElementById(statusId).textContent=`✓ ${out.length} photo(s) uploaded`;return out;}
+async function saveBank(){try{const r=await fetch(`${API}/transactions/agent/bank-account`,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({accountName:document.getElementById('pBankName').value,accountNumber:document.getElementById('pBankNumber').value,bankCode:document.getElementById('pBankCode').value})});const d=await r.json();document.getElementById('bankStatus').textContent=r.ok?`✓ Saved ${d.accountNumber}`:(d.message||'Unable to save');}catch(e){document.getElementById('bankStatus').textContent=e.message;}}
+async function submitListing(){
+  try{const exterior=await uploadPhotos(document.getElementById('pExtPhoto'),'pExtStatus');const interior=await uploadPhotos(document.getElementById('pIntPhoto'),'pIntStatus');
+  const body = {
+    title: document.getElementById('pTitle').value,
+    description: document.getElementById('pDesc').value,
+    location: document.getElementById('pLocation').value,
+    rooms: document.getElementById('pRooms').value,
+    rentPrice: document.getElementById('pRent').value,
+    agentFee: document.getElementById('pFee').value,
+    photos: { exterior, interior }
+  };
+  const res = await fetch(`${API}/listings`, { method:'POST', headers:{'Content-Type':'application/json', ...authHeaders()}, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok){ document.getElementById('postError').innerHTML = `<div class="error-msg">${data.message}</div>`; return; }
+  closeModal('postModal');
+  alert('Submitted! Your listing will go live once admin reviews and approves it.');
+  loadDashboard();
+  }catch(e){document.getElementById('postError').innerHTML=`<div class="error-msg">${e.message}</div>`;}
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
