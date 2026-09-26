@@ -10,7 +10,7 @@ async function bootstrap() {
   app.enableCors({ origin: allowedOrigins, methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'], credentials: false });
   app.useGlobalPipes(new ValidationPipe({ whitelist: false, transform: true, forbidUnknownValues: false }));
   const port = Number(process.env.PORT || 4000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Foltrest (NestJS) running at http://localhost:${port}`);
 }
 bootstrap();
